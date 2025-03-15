@@ -8,48 +8,48 @@
 // link to original website: https://www.quantstart.com/articles/Matrix-Classes-in-C-The-Header-File/
 
 
-template <typename T> class QSMatrix {
+template <typename T> class Matrix {
  private:
  unsigned rows; 
  unsigned cols;
  std::vector<T> mat; // row-major data
 
  public:
-  QSMatrix(unsigned _rows, unsigned _cols, const T& _initial);
-  QSMatrix(const QSMatrix<T>& rhs);
-  QSMatrix(const std::vector<std::vector<T>>& _mat);
-  QSMatrix(const std::vector<T>& _mat, size_t _rows, size_t _cols);
-  QSMatrix(QSMatrix<T>&& rhs) noexcept;
+  Matrix(unsigned _rows, unsigned _cols, const T& _initial);
+  Matrix(const Matrix<T>& rhs);
+  Matrix(const std::vector<std::vector<T>>& _mat);
+  Matrix(const std::vector<T>& _mat, size_t _rows, size_t _cols);
+  Matrix(Matrix<T>&& rhs) noexcept;
 
-  static QSMatrix<T> initRandomQSMatrix(size_t _rows, size_t _cols, const T& maxWeight);
+  static Matrix<T> initRandomQSMatrix(size_t _rows, size_t _cols, const T& maxWeight);
 
-  virtual ~QSMatrix();
+  virtual ~Matrix();
 
   // Operator overloading, for "standard" mathematical matrix operations                                                                                                                                                          
-  QSMatrix<T>& operator=(const QSMatrix<T>& rhs);
+  Matrix<T>& operator=(const Matrix<T>& rhs);
 
   // Matrix mathematical operations                                                                                                                                                                                               
-  QSMatrix<T> operator+(const QSMatrix<T>& rhs) const;
-  QSMatrix<T>& operator+=(const QSMatrix<T>& rhs);
-  QSMatrix<T> operator-(const QSMatrix<T>& rhs) const;
-  QSMatrix<T>& operator-=(const QSMatrix<T>& rhs);
-  QSMatrix<T> operator*(const QSMatrix<T>& rhs) const;
-  QSMatrix<T>& operator*=(const QSMatrix<T>& rhs);
-  QSMatrix<T> transpose() const;
-  QSMatrix<T>& transpose_in_place();
+  Matrix<T> operator+(const Matrix<T>& rhs) const;
+  Matrix<T>& operator+=(const Matrix<T>& rhs);
+  Matrix<T> operator-(const Matrix<T>& rhs) const;
+  Matrix<T>& operator-=(const Matrix<T>& rhs);
+  Matrix<T> operator*(const Matrix<T>& rhs) const;
+  Matrix<T>& operator*=(const Matrix<T>& rhs);
+  Matrix<T> transpose() const;
+  Matrix<T>& transpose_in_place();
 
   // Matrix/scalar operations                                                                                                                                                                                                     
-  QSMatrix<T> operator+(const T& rhs) const;
-  QSMatrix<T> operator-(const T& rhs) const;
-  QSMatrix<T> operator*(const T& rhs) const;
-  QSMatrix<T>& operator*=(const T& rhs);
-  QSMatrix<T> operator/(const T& rhs) const;
+  Matrix<T> operator+(const T& rhs) const;
+  Matrix<T> operator-(const T& rhs) const;
+  Matrix<T> operator*(const T& rhs) const;
+  Matrix<T>& operator*=(const T& rhs);
+  Matrix<T> operator/(const T& rhs) const;
 
-  QSMatrix<T> hadamardMultiplication(const QSMatrix<T>& rhs) const;
-  QSMatrix<T>& hadamardMultiplicationInPlace(const QSMatrix<T>& rhs);
+  Matrix<T> hadamardMultiplication(const Matrix<T>& rhs) const;
+  Matrix<T>& hadamardMultiplicationInPlace(const Matrix<T>& rhs);
 
-  QSMatrix<T> component_wise_transformation(const std::function<T(T)>& transformation) const;
-  QSMatrix<T>& component_wise_transformation_in_place(const std::function<T(T)>& transformation);
+  Matrix<T> component_wise_transformation(const std::function<T(T)>& transformation) const;
+  Matrix<T>& component_wise_transformation_in_place(const std::function<T(T)>& transformation);
 
   // Matrix/vector operations                                                                                                                                                                                                     
   std::vector<T> operator*(const std::vector<T>& rhs);

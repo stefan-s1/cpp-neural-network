@@ -17,9 +17,17 @@
     // He initialization
     // zero initialization
     // Lecun initialization
-    // Orthogonal initialization:
+    // Orthogonal initialization
+    // Custom (allow users to enter their own starting weights)
 
 // Expose a method for Batch Normalization
+
+// Incorporate momentum based learning
+// Incorporate stochastic gradient descent
+
+// For classification models, allow users to pass in an enum and expose a "predict_classify" which will return their enum for the class
+//
+
 
 // NeuralNet: A configurable feedforward neural network (MLP).
 // The user can specify the layer dimensions (including hidden layers),
@@ -31,12 +39,12 @@ public:
     // ActivationFunction: applied element-wise (e.g., ReLU, sigmoid, etc.).
     // ActivationFunctionDerivative: computes dZ = dA ⊙ g'(Z) given the upstream gradient dA and the pre-activation matrix Z.
     using ActivationFunction = std::function<T(T)>;
-    using ActivationFunctionDerivative = std::function<QSMatrix<T>(const QSMatrix<T>&, const QSMatrix<T>&)>;
+    using ActivationFunctionDerivative = std::function<Matrix<T>(const Matrix<T>&, const Matrix<T>&)>;
     
     // CostFunction: computes the cost (e.g., mean squared error) given the network output and targets.
     // CostFunctionDerivative: computes the derivative of the cost function with respect to the network output.
-    using CostFunction = std::function<T(const QSMatrix<T>&, const QSMatrix<T>&)>;
-    using CostFunctionDerivative = std::function<QSMatrix<T>(const QSMatrix<T>&, const QSMatrix<T>&)>;
+    using CostFunction = std::function<T(const Matrix<T>&, const Matrix<T>&)>;
+    using CostFunctionDerivative = std::function<Matrix<T>(const Matrix<T>&, const Matrix<T>&)>;
 
     // Constructor:
     // layer_dims: a vector specifying the number of neurons per layer (including input and output).
@@ -53,10 +61,10 @@ public:
               CostFunctionDerivative cost_deriv);
 
     // Train the network on input X with targets Y for a given number of epochs and learning rate.
-    void train(const QSMatrix<T>& X, const QSMatrix<T>& Y, int epochs, T learning_rate);
+    void train(const Matrix<T>& X, const Matrix<T>& Y, int epochs, T learning_rate);
     
     // Predict outputs for a given input X.
-    QSMatrix<T> predict(const QSMatrix<T>& X);
+    Matrix<T> predict(const Matrix<T>& X);
     
     // Return the cost history collected during training.
     const std::vector<T>& getCostHistory() const;
@@ -64,8 +72,8 @@ public:
 private:
     // Structure for storing parameters (weights and biases) for each layer.
     struct Parameters {
-        QSMatrix<T> W; // Weight matrix.
-        QSMatrix<T> b; // Bias matrix (stored as 1 x n, to be broadcast).
+        Matrix<T> W; // Weight matrix.
+        Matrix<T> b; // Bias matrix (stored as 1 x n, to be broadcast).
         Parameters() : W(0, 0, T()), b(0, 0, T()) {}
 
     };
@@ -89,16 +97,16 @@ private:
     // Cache structure for forward propagation.
     struct Cache {
         // Z[l]: pre-activation matrix at layer l (computed as A[l-1]*W + b).
-        std::vector<QSMatrix<T>> Z;
+        std::vector<Matrix<T>> Z;
         // A[l]: activation output at layer l, with A[0] = input X.
-        std::vector<QSMatrix<T>> A;
+        std::vector<Matrix<T>> A;
     };
 
     // Perform forward propagation from input X.
-    Cache forwardPropagation(const QSMatrix<T>& X);
+    Cache forwardPropagation(const Matrix<T>& X);
     
     // Perform back propagation given the cache from forward propagation and target Y.
-    void backPropagation(const QSMatrix<T>& Y, const Cache& cache, T learning_rate);
+    void backPropagation(const Matrix<T>& Y, const Cache& cache, T learning_rate);
 };
 
 // --- Default Activation and Cost Functions --- //
@@ -114,15 +122,15 @@ T RelU_derivative(T x);
 // Activation derivative for ReLU.
 // Computes dZ = dA ⊙ g'(Z) where g'(Z) is computed element-wise on the pre-activation matrix.
 template<typename T>
-QSMatrix<T> RelU_activation_derivative(const QSMatrix<T>& dA, const QSMatrix<T>& preActivation);
+Matrix<T> RelU_activation_derivative(const Matrix<T>& dA, const Matrix<T>& preActivation);
 
 // Mean Squared Error (MSE) cost function.
 template<typename T>
-T meanSquaredError(const QSMatrix<T>& output, const QSMatrix<T>& target);
+T meanSquaredError(const Matrix<T>& output, const Matrix<T>& target);
 
 // Derivative of MSE with respect to the network output.
 template<typename T>
-QSMatrix<T> MSE_derivative(const QSMatrix<T>& finalOutput, const QSMatrix<T>& trueLabels);
+Matrix<T> MSE_derivative(const Matrix<T>& finalOutput, const Matrix<T>& trueLabels);
 
 
 
@@ -136,14 +144,14 @@ T sigmoid_derivative(T x);
 // Activation derivative for ReLU.
 // Computes dZ = dA ⊙ g'(Z) where g'(Z) is computed element-wise on the pre-activation matrix.
 template<typename T>
-QSMatrix<T> sigmoid_activation_derivative(const QSMatrix<T>& dA, const QSMatrix<T>& preActivation);
+Matrix<T> sigmoid_activation_derivative(const Matrix<T>& dA, const Matrix<T>& preActivation);
 
 
 template<typename T>
-T binaryCrossEntropy(const QSMatrix<T>& output, const QSMatrix<T>& target);
+T binaryCrossEntropy(const Matrix<T>& output, const Matrix<T>& target);
 
 template<typename T>
-QSMatrix<T> binaryCrossEntropyDerivative(const QSMatrix<T>& finalOutput, const QSMatrix<T>& trueLabels);
+Matrix<T> binaryCrossEntropyDerivative(const Matrix<T>& finalOutput, const Matrix<T>& trueLabels);
 
 #include "neural_network.cpp"
 

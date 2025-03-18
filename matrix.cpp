@@ -86,7 +86,7 @@ Matrix<T> Matrix<T>::operator+(const Matrix<T>& rhs) const {
     // Case 1: Standard elementwise addition.
     if (rows == rhs.rows && cols == rhs.cols) {
         Matrix<T> result(rows, cols, T());
-        // Use std::transform for element-wise addition.
+        // Use std::transform for element-wise addition. Can experiment with std::execution::par if on multi-core machine
         std::transform(mat.begin(), mat.end(), rhs.mat.begin(), result.mat.begin(),
                        std::plus<T>());
         return result;
@@ -132,9 +132,7 @@ template<typename T>
 Matrix<T> Matrix<T>::operator-(const Matrix<T>& rhs) const {
     assert(rows == rhs.rows && cols == rhs.cols);
     Matrix<T> result(rows, cols, T());
-    for (size_t i = 0; i < rows * cols; ++i) {
-        result.mat[i] = mat[i] - rhs.mat[i];
-    }
+    std::transform(mat.begin(), mat.end(), rhs.mat.begin(), result.mat.begin(), std::minus<T>());
     return result;
 }
 
@@ -157,8 +155,11 @@ Matrix<T> Matrix<T>::operator*(const Matrix<T>& rhs) const {
     for (size_t i = 0; i < rows; ++i) {
         for (size_t k = 0; k < cols; ++k) {
             T temp = (*this)(i, k);
+            // using offset directly here instead of () operator as this is performance critical code
+            size_t rhs_offset = k * rhs.cols;
+            size_t result_offset = i * result.cols;
             for (size_t j = 0; j < rhs.cols; ++j) {
-                result(i, j) += temp * rhs(k, j);
+                result.mat[result_offset + j] += temp * rhs.mat[rhs_offset + j]; 
             }
         }
     }

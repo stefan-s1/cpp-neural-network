@@ -27,6 +27,7 @@ template <typename T> class Matrix {
 
   // Operator overloading, for "standard" mathematical matrix operations                                                                                                                                                          
   Matrix<T>& operator=(const Matrix<T>& rhs);
+  Matrix<T>& operator=(Matrix<T>&& rhs) noexcept;
 
   // Matrix mathematical operations                                                                                                                                                                                               
   Matrix<T> operator+(const Matrix<T>& rhs) const;

@@ -41,8 +41,9 @@ Matrix<T>::Matrix(const std::vector<T>& _mat, size_t _rows, size_t _cols)
 template<typename T>
 Matrix<T> Matrix<T>::initRandomQSMatrix(size_t _rows, size_t _cols, const T& maxWeight) {
     Matrix<T> my_matrix(_rows, _cols, T());
-    std::mt19937 gen(3); // Fixed seed for reproducibility.
+    static std::mt19937 gen{42}; // Fixed seed for reproducibility. Has to be static so we don't reseed the same fixed seed everytime
     std::uniform_real_distribution<T> d(-maxWeight, maxWeight);
+    //std::normal_distribution<T> d(0, maxWeight / 4); // set s.d. to max / 4 so that 99.9% of values are less than max weight
     for (size_t i = 0; i < _rows * _cols; ++i) {
         my_matrix.mat[i] = d(gen);
     }
@@ -79,6 +80,18 @@ Matrix<T>& Matrix<T>::operator=(const Matrix<T>& rhs) {
     mat = rhs.mat;
     return *this;
 }
+
+// Move Assignment Operator
+template<typename T>
+Matrix<T>& Matrix<T>::operator=(Matrix<T>&& rhs) noexcept {
+    if (this != &rhs) {
+        rows = std::exchange(rhs.rows, 0);
+        cols = std::exchange(rhs.cols, 0);
+        mat = std::move(rhs.mat);
+    }
+    return *this;
+}
+
 
 // Matrix addition with broadcasting support.
 template<typename T>
@@ -169,14 +182,17 @@ Matrix<T> Matrix<T>::operator*(const Matrix<T>& rhs) const {
 // Cumulative multiplication.
 template<typename T>
 Matrix<T>& Matrix<T>::operator*=(const Matrix<T>& rhs) {
-    *this = (*this) * rhs;
+    *this = std::move((*this) * rhs);
     return *this;
 }
 
 // Transpose (non in-place).
 template<typename T>
 Matrix<T> Matrix<T>::transpose() const {
+
+    // Matrix<T> result(this->mat, cols, rows); would this work?
     Matrix<T> result(cols, rows, T());
+    
     for (size_t i = 0; i < rows; ++i) {
         for (size_t j = 0; j < cols; ++j) {
             result(j, i) = (*this)(i, j);
@@ -188,7 +204,7 @@ Matrix<T> Matrix<T>::transpose() const {
 // In-place transpose.
 template<typename T>
 Matrix<T>& Matrix<T>::transpose_in_place() {
-    *this = this->transpose();
+    *this = std::move(this->transpose());
     return *this;
 }
 

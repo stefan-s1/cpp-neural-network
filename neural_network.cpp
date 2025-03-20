@@ -140,6 +140,16 @@ void NeuralNet<T>::initializeParameters(T maxWeight) {
 }
 
 template<typename T>
+std::vector<typename NeuralNet<T>::Parameters> NeuralNet<T>::getParameters(){
+    return this->params;
+}
+
+template<typename T>
+void NeuralNet<T>::setParameters(std::vector<typename NeuralNet<T>::Parameters> _params){
+    return this->params = _params;
+}
+
+template<typename T>
 typename NeuralNet<T>::Cache NeuralNet<T>::forwardPropagation(const Matrix<T>& X) {
     Cache cache;
     cache.A.push_back(X); // A[0] is the input.

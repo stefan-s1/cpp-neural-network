@@ -35,6 +35,14 @@
 template<typename T>
 class NeuralNet {
 public:
+
+    // Structure for storing parameters (weights and biases) for each layer.
+    struct Parameters {
+        Matrix<T> W; // Weight matrix.
+        Matrix<T> b; // Bias matrix (stored as 1 x n, to be broadcast).
+        Parameters() : W(0, 0, T()), b(0, 0, T()) {}
+    };
+
     // Type aliases for function objects.
     // ActivationFunction: applied element-wise (e.g., ReLU, sigmoid, etc.).
     // ActivationFunctionDerivative: computes dZ = dA ⊙ g'(Z) given the upstream gradient dA and the pre-activation matrix Z.
@@ -66,17 +74,15 @@ public:
     // Predict outputs for a given input X.
     Matrix<T> predict(const Matrix<T>& X);
     
+    std::vector<Parameters> getParameters();
+    void setParameters(std::vector<Parameters> _params);
+
+
     // Return the cost history collected during training.
     const std::vector<T>& getCostHistory() const;
 
 private:
-    // Structure for storing parameters (weights and biases) for each layer.
-    struct Parameters {
-        Matrix<T> W; // Weight matrix.
-        Matrix<T> b; // Bias matrix (stored as 1 x n, to be broadcast).
-        Parameters() : W(0, 0, T()), b(0, 0, T()) {}
 
-    };
 
     // The layer dimensions (including input and output layers).
     std::vector<int> layer_dims;

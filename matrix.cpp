@@ -242,7 +242,7 @@ Matrix<T> Matrix<T>::transpose() const {
     for (size_t i = 0; i < rows; ++i) {
         unsigned int offset = i * cols;
         for (size_t j = 0; j < cols; ++j) {
-            result(j, i) = (*this)[offset + j];
+            result(j, i) = (*this).mat[offset + j];
         }
     }
     return result;

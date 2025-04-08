@@ -1,11 +1,22 @@
-#ifndef __QS_MATRIX_CPP
-#define __QS_MATRIX_CPP
+#pragma once
+
+
+// Conditionally include <execution> if available, and set up a macro for the execution policy.
+#if __has_include(<execution>)
+    #include <execution>
+    // Macro expands to 'std::execution::par,' so that it is inserted before the iterators.
+    #define EXECUTION_POLICY std::execution::par_unseq,
+#else
+    // If <execution> is not available, the macro expands to nothing.
+    #define EXECUTION_POLICY
+#endif
 
 #include "matrix.h"
 #include <functional>
 #include <random>
 #include <cassert>
 #include <algorithm>  // for std::copy and std::transform
+
 
 // --- QSMatrix Implementation ---
 
@@ -93,86 +104,119 @@ Matrix<T>& Matrix<T>::operator=(Matrix<T>&& rhs) noexcept {
 }
 
 
-// Matrix addition with broadcasting support.
+// Matrix addition with broadcasting support (optimized with .data())
 template<typename T>
 Matrix<T> Matrix<T>::operator+(const Matrix<T>& rhs) const {
-    // Case 1: Standard elementwise addition.
+    T const* lhs_data = mat.data();
+    T const* rhs_data = rhs.mat.data();
+    
+    // Case 1: Standard elementwise addition
     if (rows == rhs.rows && cols == rhs.cols) {
         Matrix<T> result(rows, cols, T());
-        // Use std::transform for element-wise addition. Can experiment with std::execution::par if on multi-core machine
-        std::transform(mat.begin(), mat.end(), rhs.mat.begin(), result.mat.begin(),
-                       std::plus<T>());
+        T* res_data = result.mat.data();
+        const size_t total = rows * cols;
+        
+        for (size_t i = 0; i < total; ++i) {
+            res_data[i] = lhs_data[i] + rhs_data[i];
+        }
         return result;
     }
-    // Case 2: rhs is a row vector that should be broadcast to all rows.
+    // Case 2: rhs is a row vector to be broadcast
     else if (rhs.rows == 1 && rhs.cols == cols) {
         Matrix<T> result(rows, cols, T());
+        T* res_data = result.mat.data();
+        
         for (size_t i = 0; i < rows; ++i) {
+            const size_t row_offset = i * cols;
             for (size_t j = 0; j < cols; ++j) {
-                result(i, j) = (*this)(i, j) + rhs(0, j);
+                res_data[row_offset + j] = lhs_data[row_offset + j] + rhs_data[j];
             }
         }
         return result;
     }
-    // Case 3: *this is a row vector that should be broadcast to all rows of rhs.
+    // Case 3: this is a row vector to be broadcast
     else if (rows == 1 && cols == rhs.cols) {
         Matrix<T> result(rhs.rows, cols, T());
+        T* res_data = result.mat.data();
+        T const* this_row = lhs_data; // Only one row in this matrix
+        
         for (size_t i = 0; i < rhs.rows; ++i) {
+            const size_t rhs_offset = i * cols;
             for (size_t j = 0; j < cols; ++j) {
-                result(i, j) = (*this)(0, j) + rhs(i, j);
+                res_data[rhs_offset + j] = this_row[j] + rhs_data[rhs_offset + j];
             }
         }
         return result;
     }
     else {
-        assert(false && "Matrix dimensions incompatible for addition (no broadcasting available)");
+        assert(false && "Matrix dimensions incompatible for addition");
         return Matrix<T>(0, 0, T());
     }
 }
 
-// Cumulative addition.
+// Optimized cumulative addition
 template<typename T>
 Matrix<T>& Matrix<T>::operator+=(const Matrix<T>& rhs) {
     assert(rows == rhs.rows && cols == rhs.cols);
-    for (size_t i = 0; i < rows * cols; ++i) {
-        mat[i] += rhs.mat[i];
+    T* lhs_data = mat.data();
+    T const* rhs_data = rhs.mat.data();
+    const size_t total = rows * cols;
+    
+    for (size_t i = 0; i < total; ++i) {
+        lhs_data[i] += rhs_data[i];
     }
     return *this;
 }
 
-// Matrix subtraction.
+// Optimized matrix subtraction
 template<typename T>
 Matrix<T> Matrix<T>::operator-(const Matrix<T>& rhs) const {
     assert(rows == rhs.rows && cols == rhs.cols);
     Matrix<T> result(rows, cols, T());
-    std::transform(mat.begin(), mat.end(), rhs.mat.begin(), result.mat.begin(), std::minus<T>());
+    T const* lhs_data = mat.data();
+    T const* rhs_data = rhs.mat.data();
+    T* res_data = result.mat.data();
+    const size_t total = rows * cols;
+    
+    for (size_t i = 0; i < total; ++i) {
+        res_data[i] = lhs_data[i] - rhs_data[i];
+    }
     return result;
 }
 
-// Cumulative subtraction.
+// Optimized cumulative subtraction
 template<typename T>
 Matrix<T>& Matrix<T>::operator-=(const Matrix<T>& rhs) {
     assert(rows == rhs.rows && cols == rhs.cols);
-    for (size_t i = 0; i < rows * cols; ++i) {
-        mat[i] -= rhs.mat[i];
+    T* lhs_data = mat.data();
+    T const* rhs_data = rhs.mat.data();
+    const size_t total = rows * cols;
+    
+    for (size_t i = 0; i < total; ++i) {
+        lhs_data[i] -= rhs_data[i];
     }
     return *this;
 }
 
-// Optimized Matrix multiplication.
-// Reorder loops for better cache locality by fixing a value from *this.
+// Optimized matrix multiplication
 template<typename T>
 Matrix<T> Matrix<T>::operator*(const Matrix<T>& rhs) const {
     assert(cols == rhs.rows);
     Matrix<T> result(rows, rhs.cols, T());
+    T* res_data = result.mat.data();
+    T const* lhs_data = mat.data();
+    T const* rhs_data = rhs.mat.data();
+    const size_t rhs_cols = rhs.cols;
+    
     for (size_t i = 0; i < rows; ++i) {
+        const size_t res_offset = i * rhs_cols;
         for (size_t k = 0; k < cols; ++k) {
-            T temp = (*this)(i, k);
-            // using offset directly here instead of () operator as this is performance critical code
-            size_t rhs_offset = k * rhs.cols;
-            size_t result_offset = i * result.cols;
-            for (size_t j = 0; j < rhs.cols; ++j) {
-                result.mat[result_offset + j] += temp * rhs.mat[rhs_offset + j]; 
+            const T temp = lhs_data[i * cols + k];
+            const size_t rhs_offset = k * rhs_cols;
+            
+            // Manual SIMD-like optimization opportunity here
+            for (size_t j = 0; j < rhs_cols; ++j) {
+                res_data[res_offset + j] += temp * rhs_data[rhs_offset + j];
             }
         }
     }
@@ -190,12 +234,15 @@ Matrix<T>& Matrix<T>::operator*=(const Matrix<T>& rhs) {
 template<typename T>
 Matrix<T> Matrix<T>::transpose() const {
 
-    // Matrix<T> result(this->mat, cols, rows); would this work?
+    if (rows == 1 || cols == 1)
+        return Matrix<T>(this->mat, cols, rows); 
+    
     Matrix<T> result(cols, rows, T());
     
     for (size_t i = 0; i < rows; ++i) {
+        unsigned int offset = i * cols;
         for (size_t j = 0; j < cols; ++j) {
-            result(j, i) = (*this)(i, j);
+            result(j, i) = (*this)[offset + j];
         }
     }
     return result;
@@ -204,6 +251,24 @@ Matrix<T> Matrix<T>::transpose() const {
 // In-place transpose.
 template<typename T>
 Matrix<T>& Matrix<T>::transpose_in_place() {
+    
+    if (rows == 1 || cols == 1) {
+        unsigned int temp = cols;
+        cols = rows;
+        rows = temp;
+        return *this;
+    }
+
+    // for square matrices this can be optimized by swapping along the diagonal
+    if (rows == cols) {
+        for (size_t i = 0; i < rows; ++i) {
+            for (size_t j = i + 1; j < cols; ++j) {
+                std::swap((*this)(i, j), (*this)(j, i));
+            }
+        }
+        return *this;
+    }
+
     *this = std::move(this->transpose());
     return *this;
 }
@@ -212,7 +277,7 @@ Matrix<T>& Matrix<T>::transpose_in_place() {
 template<typename T>
 Matrix<T> Matrix<T>::operator+(const T& rhs) const {
     Matrix<T> result(rows, cols, T());
-    std::transform(mat.begin(), mat.end(), result.mat.begin(),
+    std::transform(EXECUTION_POLICY  mat.begin(), mat.end(), result.mat.begin(),
                    [rhs](T val) { return val + rhs; });
     return result;
 }
@@ -221,7 +286,7 @@ Matrix<T> Matrix<T>::operator+(const T& rhs) const {
 template<typename T>
 Matrix<T> Matrix<T>::operator-(const T& rhs) const {
     Matrix<T> result(rows, cols, T());
-    std::transform(mat.begin(), mat.end(), result.mat.begin(),
+    std::transform(EXECUTION_POLICY  mat.begin(), mat.end(), result.mat.begin(),
                    [rhs](T val) { return val - rhs; });
     return result;
 }
@@ -230,7 +295,7 @@ Matrix<T> Matrix<T>::operator-(const T& rhs) const {
 template<typename T>
 Matrix<T> Matrix<T>::operator*(const T& rhs) const {
     Matrix<T> result(rows, cols, T());
-    std::transform(mat.begin(), mat.end(), result.mat.begin(),
+    std::transform(EXECUTION_POLICY  mat.begin(), mat.end(), result.mat.begin(),
                    [rhs](T val) { return val * rhs; });
     return result;
 }
@@ -248,7 +313,7 @@ Matrix<T>& Matrix<T>::operator*=(const T& rhs) {
 template<typename T>
 Matrix<T> Matrix<T>::operator/(const T& rhs) const {
     Matrix<T> result(rows, cols, T());
-    std::transform(mat.begin(), mat.end(), result.mat.begin(),
+    std::transform(EXECUTION_POLICY mat.begin(), mat.end(), result.mat.begin(),
                    [rhs](T val) { return val / rhs; });
     return result;
 }
@@ -279,20 +344,49 @@ std::vector<T> Matrix<T>::diag_vec() {
     return result;
 }
 
-// Component-wise transformation (returns a new matrix).
+
+// Generic apply_transform
 template<typename T>
-Matrix<T> Matrix<T>::component_wise_transformation(const std::function<T(T)>& transformation) const {
+template<typename Fn>
+Matrix<T> Matrix<T>::apply_transform(Fn&& fn) const {
     Matrix<T> result(rows, cols, T());
-    std::transform(mat.begin(), mat.end(), result.mat.begin(), transformation);
+    std::transform(EXECUTION_POLICY mat.begin(), mat.end(), result.mat.begin(), std::forward<Fn>(fn));
     return result;
 }
 
+// Generic apply_transform
+template<typename T>
+template<typename Fn>
+void Matrix<T>::apply_inplace_transform(Fn&& fn) {
+    Matrix<T> result(rows, cols, T());
+    std::transform(EXECUTION_POLICY mat.begin(), mat.end(), mat.begin(), std::forward<Fn>(fn));
+    return result;
+}
+
+// Overload for std::function
+template<typename T>
+Matrix<T> Matrix<T>::component_wise_transformation(const std::function<T(T)>& transformation) const {
+    return apply_transform(transformation);
+}
 // In-place component-wise transformation.
 template<typename T>
 Matrix<T>& Matrix<T>::component_wise_transformation_in_place(const std::function<T(T)>& transformation) {
-    std::transform(mat.begin(), mat.end(), mat.begin(), transformation);
+    apply_inplace_transform(transformation);
     return *this;
 }
+
+// Overload for function pointers
+template<typename T>
+Matrix<T> Matrix<T>::component_wise_transformation(T (*transformation)(T)) const {
+    return apply_transform(transformation);
+}
+// In-place component-wise transformation.
+template<typename T>
+Matrix<T>& Matrix<T>::component_wise_transformation_in_place(T (*transformation)(T)) {
+    apply_inplace_transform(transformation);
+    return *this;
+}
+
 
 // Overloaded operator() for non-const element access.
 template<typename T>
@@ -325,7 +419,7 @@ template<typename T>
 Matrix<T> Matrix<T>::hadamardMultiplication(const Matrix<T>& rhs) const {
     assert(rows == rhs.rows && cols == rhs.cols);
     Matrix<T> result(rows, cols, T());
-    std::transform(mat.begin(), mat.end(), rhs.mat.begin(), result.mat.begin(),
+    std::transform(EXECUTION_POLICY mat.begin(), mat.end(), rhs.mat.begin(), result.mat.begin(),
                    std::multiplies<T>());
     return result;
 }
@@ -339,5 +433,3 @@ Matrix<T>& Matrix<T>::hadamardMultiplicationInPlace(const Matrix<T>& rhs) {
     }
     return *this;
 }
-
-#endif

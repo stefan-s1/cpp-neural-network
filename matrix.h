@@ -1,5 +1,4 @@
-#ifndef __QS_MATRIX_H
-#define __QS_MATRIX_H
+#pragma once
 
 #include <vector>
 #include <functional>
@@ -10,9 +9,16 @@
 
 template <typename T> class Matrix {
  private:
- unsigned rows; 
- unsigned cols;
- std::vector<T> mat; // row-major data
+ 
+  unsigned rows; 
+  unsigned cols;
+  std::vector<T> mat; // row-major data
+  
+  template<typename Fn>
+  Matrix<T> apply_transform(Fn&& fn) const;
+ 
+  template<typename Fn>
+  void apply_inplace_transform(Fn&& fn);
 
  public:
   Matrix(unsigned _rows, unsigned _cols, const T& _initial);
@@ -49,8 +55,12 @@ template <typename T> class Matrix {
   Matrix<T> hadamardMultiplication(const Matrix<T>& rhs) const;
   Matrix<T>& hadamardMultiplicationInPlace(const Matrix<T>& rhs);
 
+  // Overloads for std::function (for flexibility) and function pointers (for performance)
   Matrix<T> component_wise_transformation(const std::function<T(T)>& transformation) const;
+  Matrix<T> component_wise_transformation(T (*transformation)(T)) const;
+
   Matrix<T>& component_wise_transformation_in_place(const std::function<T(T)>& transformation);
+  Matrix<T>& component_wise_transformation_in_place(T (*transformation)(T));
 
   // Matrix/vector operations                                                                                                                                                                                                     
   std::vector<T> operator*(const std::vector<T>& rhs);
@@ -66,5 +76,3 @@ template <typename T> class Matrix {
 
 };
 #include "matrix.cpp"
-
-#endif

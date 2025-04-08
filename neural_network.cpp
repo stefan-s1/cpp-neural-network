@@ -1,5 +1,4 @@
-#ifndef NEURALNET_CPP
-#define NEURALNET_CPP
+#pragma once
 
 #include <vector>
 #include <functional>
@@ -230,10 +229,3 @@ template<typename T>
 const std::vector<T>& NeuralNet<T>::getCostHistory() const {
     return cost_history;
 }
-
-
-
-
-
-
-#endif // NEURALNET_CPP

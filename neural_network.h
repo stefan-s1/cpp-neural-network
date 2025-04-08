@@ -1,5 +1,4 @@
-#ifndef NEURALNET_H
-#define NEURALNET_H
+# pragma once
 
 #include <vector>
 #include <functional>
@@ -160,5 +159,3 @@ template<typename T>
 Matrix<T> binaryCrossEntropyDerivative(const Matrix<T>& finalOutput, const Matrix<T>& trueLabels);
 
 #include "neural_network.cpp"
-
-#endif // NEURALNET_H

@@ -10,8 +10,8 @@
 template <typename T> class Matrix {
  private:
  
-  unsigned rows; 
-  unsigned cols;
+  size_t rows; 
+  size_t cols;
   std::vector<T> mat; // row-major data
   
   template<typename Fn>
@@ -21,13 +21,13 @@ template <typename T> class Matrix {
   void apply_inplace_transform(Fn&& fn);
 
  public:
-  Matrix(unsigned _rows, unsigned _cols, const T& _initial);
+  Matrix(size_t _rows, size_t _cols, const T& _initial);
   Matrix(const Matrix<T>& rhs);
   Matrix(const std::vector<std::vector<T>>& _mat);
   Matrix(const std::vector<T>& _mat, size_t _rows, size_t _cols);
   Matrix(Matrix<T>&& rhs) noexcept;
 
-  static Matrix<T> initRandomQSMatrix(size_t _rows, size_t _cols, const T& maxWeight);
+  static Matrix<T> initRandomMatrix(size_t _rows, size_t _cols, const T& maxWeight);
 
   virtual ~Matrix();
 
@@ -63,16 +63,20 @@ template <typename T> class Matrix {
   Matrix<T>& component_wise_transformation_in_place(T (*transformation)(T));
 
   // Matrix/vector operations                                                                                                                                                                                                     
-  std::vector<T> operator*(const std::vector<T>& rhs);
-  std::vector<T> diag_vec();
+  std::vector<T> operator*(const std::vector<T>& rhs) const;
+  std::vector<T> diag_vec() const;
 
   // Access the individual elements                                                                                                                                                                                               
-  T& operator()(const unsigned& row, const unsigned& col);
-  const T& operator()(const unsigned& row, const unsigned& col) const;
+  T& operator()(const size_t& row, const size_t& col);
+  const T& operator()(const size_t& row, const size_t& col) const;
 
   // Access the row and column sizes                                                                                                                                                                                              
-  unsigned get_rows() const;
-  unsigned get_cols() const;
+  size_t get_rows() const;
+  size_t get_cols() const;
+
+  // 0 indexed
+  std::vector<T> get_row_copy(size_t row) const;
+  std::vector<T> get_col_copy(size_t col) const;
 
 };
 #include "matrix.cpp"

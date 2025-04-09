@@ -69,6 +69,8 @@ public:
 
     // Train the network on input X with targets Y for a given number of epochs and learning rate.
     void train(const Matrix<T>& X, const Matrix<T>& Y, int epochs, T learning_rate);
+    void train_mini_batch(const Matrix<T>& X, const Matrix<T>& Y, int epochs, T learning_rate, size_t batch_size);
+
     
     // Predict outputs for a given input X.
     Matrix<T> predict(const Matrix<T>& X);

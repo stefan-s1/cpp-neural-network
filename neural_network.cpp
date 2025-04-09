@@ -7,6 +7,8 @@
 #include "matrix.h"
 #include "neural_network.h"
 
+#include <random>    // for std::mt19937 and shuffling of batches in train_mini_batch
+
 // --- Default Activation and Cost Functions Implementation --- //
 
 template<typename T>
@@ -46,10 +48,6 @@ Matrix<T> MSE_derivative(const Matrix<T>& finalOutput, const Matrix<T>& trueLabe
 }
 
 
-
-
-
-
 // Default functions for binary classification:
 template<typename T>
 T sigmoid(T x) {
@@ -72,7 +70,7 @@ template<typename T>
 T binaryCrossEntropy(const Matrix<T>& output, const Matrix<T>& target) {
     // Compute average binary cross entropy cost.
     T cost = T();
-    unsigned m = output.get_rows() * output.get_cols();
+    size_t m = output.get_rows() * output.get_cols();
     for (size_t i = 0; i < output.get_rows(); ++i) {
         for (size_t j = 0; j < output.get_cols(); ++j) {
             T y = target(i, j);
@@ -95,10 +93,7 @@ Matrix<T> binaryCrossEntropyDerivative(const Matrix<T>& finalOutput, const Matri
 }
 
 
-
-
 // --- NeuralNet Class Member Functions --- //
-
 template<typename T>
 NeuralNet<T>::NeuralNet(const std::vector<int>& layer_dims,
                         ActivationFunction activation,
@@ -131,7 +126,7 @@ void NeuralNet<T>::initializeParameters(T maxWeight) {
     for (int l = 1; l < L; ++l) {
         Parameters p;
         // Weight matrix dimensions: (layer_dims[l-1] x layer_dims[l])
-        p.W = Matrix<T>::initRandomQSMatrix(layer_dims[l - 1], layer_dims[l], maxWeight);
+        p.W = Matrix<T>::initRandomMatrix(layer_dims[l - 1], layer_dims[l], maxWeight);
         // Bias: 1 x layer_dims[l] (to be broadcast during addition).
         p.b = Matrix<T>(1, layer_dims[l], T(0));
         params[l - 1] = p;
@@ -197,8 +192,11 @@ void NeuralNet<T>::backPropagation(const Matrix<T>& Y, const Cache& cache, T lea
         Matrix<T> dA_prev = dZ * params[current_layer].W.transpose();
         
         // Update parameters.
-        params[current_layer].W -= (dW * learning_rate);
-        params[current_layer].b -= (db * learning_rate);
+        dW *= learning_rate;
+        params[current_layer].W -= dW;
+
+        db *= learning_rate;
+        params[current_layer].b -= db;
         dA = dA_prev;
     }
 }
@@ -219,7 +217,54 @@ void NeuralNet<T>::train(const Matrix<T>& X, const Matrix<T>& Y, int epochs, T l
         backPropagation(Y, cache, learning_rate);
         if (epoch % 1000 == 0) {
             std::cout << "Epoch " << epoch << " cost: " << cost << std::endl;
-            // Maybe also periodically output the params (in case training gets interupted we don't start from zero)
+            // Maybe also periodically output the params (in case training gets interrupted we don't start from zero)
+        }
+    }
+}
+
+template<typename T>
+void NeuralNet<T>::train_mini_batch(const Matrix<T>& X, const Matrix<T>& Y, int epochs, T learning_rate, size_t num_batches) {
+    
+    size_t num_samples = X.get_rows();
+    size_t batch_size = (num_samples + num_batches - 1) / num_batches;  // ceil division
+
+    std::vector<std::pair<Matrix<T>, Matrix<T>>> batches;
+    batches.reserve(num_batches);
+
+    for (size_t i = 0; i < num_batches; ++i) {
+        size_t start = i * batch_size;
+        size_t actual_batch_size = std::min(batch_size, num_samples - start);
+
+        std::vector<std::vector<T>> batchX, batchY;
+        batchX.reserve(actual_batch_size);
+        batchY.reserve(actual_batch_size);
+
+        for (size_t j = 0; j < actual_batch_size; ++j) {
+            batchX.push_back(X.get_row_copy(start + j));
+            batchY.push_back(Y.get_row_copy(start + j));
+        }
+
+        batches.emplace_back(Matrix<T>(batchX), Matrix<T>(batchY));
+    }
+
+    static std::mt19937 rng(42); // fixed seed for reproducibility; use std::random_device{}() for true randomness
+    std::vector<size_t> batch_indices(num_batches);
+    std::iota(batch_indices.begin(), batch_indices.end(), 0);
+
+    for (int epoch = 0; epoch < epochs; ++epoch) {
+        std::shuffle(batch_indices.begin(), batch_indices.end(), rng); // Shuffle batch access order
+
+        for (size_t i = 0; i < num_batches; ++i) {
+            size_t batch_idx = batch_indices[i];
+
+            Cache cache = forwardPropagation(batches[batch_idx].first);
+            T cost = cost_func(cache.A.back(), batches[batch_idx].second);
+            cost_history.push_back(cost);
+            backPropagation(batches[batch_idx].second, cache, learning_rate);
+
+            if (epoch % 1000 == 0 && i == 0) {
+                std::cout << "Epoch " << epoch << " cost: " << cost << std::endl;
+            }
         }
     }
 }

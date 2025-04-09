@@ -18,11 +18,9 @@
 #include <algorithm>  // for std::copy and std::transform
 
 
-// --- QSMatrix Implementation ---
-
 // Parameter Constructor: initialize with given number of rows, columns, and an initial value.
 template<typename T>
-Matrix<T>::Matrix(unsigned _rows, unsigned _cols, const T& _initial)
+Matrix<T>::Matrix(size_t _rows, size_t _cols, const T& _initial)
     : rows(_rows), cols(_cols), mat(_rows * _cols, _initial)
 {
 }
@@ -50,7 +48,7 @@ Matrix<T>::Matrix(const std::vector<T>& _mat, size_t _rows, size_t _cols)
 
 // Create a random matrix with values in [-maxWeight, maxWeight].
 template<typename T>
-Matrix<T> Matrix<T>::initRandomQSMatrix(size_t _rows, size_t _cols, const T& maxWeight) {
+Matrix<T> Matrix<T>::initRandomMatrix(size_t _rows, size_t _cols, const T& maxWeight) {
     Matrix<T> my_matrix(_rows, _cols, T());
     static std::mt19937 gen{42}; // Fixed seed for reproducibility. Has to be static so we don't reseed the same fixed seed everytime
     std::uniform_real_distribution<T> d(-maxWeight, maxWeight);
@@ -203,9 +201,10 @@ template<typename T>
 Matrix<T> Matrix<T>::operator*(const Matrix<T>& rhs) const {
     assert(cols == rhs.rows);
     Matrix<T> result(rows, rhs.cols, T());
-    T* res_data = result.mat.data();
-    T const* lhs_data = mat.data();
-    T const* rhs_data = rhs.mat.data();
+    
+    T* __restrict res_data = result.mat.data();
+    T const* __restrict lhs_data = mat.data();
+    T const* __restrict rhs_data = rhs.mat.data();
     const size_t rhs_cols = rhs.cols;
     
     for (size_t i = 0; i < rows; ++i) {
@@ -214,7 +213,7 @@ Matrix<T> Matrix<T>::operator*(const Matrix<T>& rhs) const {
             const T temp = lhs_data[i * cols + k];
             const size_t rhs_offset = k * rhs_cols;
             
-            // Manual SIMD-like optimization opportunity here
+            // Let compiler auto-vectorize this
             for (size_t j = 0; j < rhs_cols; ++j) {
                 res_data[res_offset + j] += temp * rhs_data[rhs_offset + j];
             }
@@ -240,7 +239,7 @@ Matrix<T> Matrix<T>::transpose() const {
     Matrix<T> result(cols, rows, T());
     
     for (size_t i = 0; i < rows; ++i) {
-        unsigned int offset = i * cols;
+        size_t offset = i * cols;
         for (size_t j = 0; j < cols; ++j) {
             result(j, i) = (*this).mat[offset + j];
         }
@@ -253,7 +252,7 @@ template<typename T>
 Matrix<T>& Matrix<T>::transpose_in_place() {
     
     if (rows == 1 || cols == 1) {
-        unsigned int temp = cols;
+        size_t temp = cols;
         cols = rows;
         rows = temp;
         return *this;
@@ -320,7 +319,7 @@ Matrix<T> Matrix<T>::operator/(const T& rhs) const {
 
 // Matrix-vector multiplication (vector size must equal number of columns).
 template<typename T>
-std::vector<T> Matrix<T>::operator*(const std::vector<T>& rhs) {
+std::vector<T> Matrix<T>::operator*(const std::vector<T>& rhs) const {
     assert(rhs.size() == cols);
     std::vector<T> result(rows, T());
     for (size_t i = 0; i < rows; ++i) {
@@ -335,7 +334,7 @@ std::vector<T> Matrix<T>::operator*(const std::vector<T>& rhs) {
 
 // Return a vector containing the diagonal elements.
 template<typename T>
-std::vector<T> Matrix<T>::diag_vec() {
+std::vector<T> Matrix<T>::diag_vec() const {
     size_t n = (rows < cols) ? rows : cols;
     std::vector<T> result(n, T());
     for (size_t i = 0; i < n; ++i) {
@@ -390,27 +389,27 @@ Matrix<T>& Matrix<T>::component_wise_transformation_in_place(T (*transformation)
 
 // Overloaded operator() for non-const element access.
 template<typename T>
-T& Matrix<T>::operator()(const unsigned& row, const unsigned& col) {
+T& Matrix<T>::operator()(const size_t& row, const size_t& col) {
     assert(row < rows && col < cols);
     return mat[row * cols + col];
 }
 
 // Overloaded operator() for const element access.
 template<typename T>
-const T& Matrix<T>::operator()(const unsigned& row, const unsigned& col) const {
+const T& Matrix<T>::operator()(const size_t& row, const size_t& col) const {
     assert(row < rows && col < cols);
     return mat[row * cols + col];
 }
 
 // Return the number of rows.
 template<typename T>
-unsigned Matrix<T>::get_rows() const {
+size_t Matrix<T>::get_rows() const {
     return rows;
 }
 
 // Return the number of columns.
 template<typename T>
-unsigned Matrix<T>::get_cols() const {
+size_t Matrix<T>::get_cols() const {
     return cols;
 }
 
@@ -432,4 +431,22 @@ Matrix<T>& Matrix<T>::hadamardMultiplicationInPlace(const Matrix<T>& rhs) {
         mat[i] *= rhs.mat[i];
     }
     return *this;
+}
+
+template<typename T>
+std::vector<T> Matrix<T>::get_row_copy(size_t row) const {
+    std::vector<T> result(get_cols());
+    for (size_t i = 0; i < get_cols(); ++i) {
+        result[i] = (*this)(row, i);
+    }
+    return result;
+}
+
+template<typename T>
+std::vector<T> Matrix<T>::get_col_copy(size_t col) const {
+    std::vector<T> result(get_rows());
+    for (size_t i = 0; i < get_rows(); ++i) {
+        result[i] = (*this)(i, col);
+    }
+    return result;
 }

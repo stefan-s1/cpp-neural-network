@@ -3,11 +3,8 @@
 #include <vector>
 #include <functional>
 
-
-// link to original website: https://www.quantstart.com/articles/Matrix-Classes-in-C-The-Header-File/
-
-
-template <typename T> class Matrix {
+template <typename T> 
+class Matrix {
  private:
  
   size_t rows; 

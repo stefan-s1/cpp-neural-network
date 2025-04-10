@@ -3,9 +3,13 @@
 A lightweight, header-only neural network and matrix math library built from scratch.  
 Supports dense feedforward neural networks with customizable architecture, activation functions, and cost functions.
 
-Requires **C\++17** or above, if compiled with **C++20** will enable std\::execution\::unseq_par optimizations
+Requires `C++17` or above, if compiled with `C++20` will enable `std::execution::unseq_par` optimizations
 
-Matrix multiplication has **/openmp** support if your compiler supports that. 
+Matrix multiplication has `/openmp` support if your compiler supports that. Informal benchmarking
+on my local machine shows about 2-3x faster training. 
+
+For those interested, profiling shows about 40% of CPU time is spent
+in operator* for Matrix\<T>.
 
 ---
 
@@ -30,9 +34,8 @@ You may notice the absence of automated testing — that’s intentional. I use 
 - Lightweight matrix class with row-major layout and broadcasting support
 - Parallelism via OpenMP and C++20 parallel algorithms (where supported)
 - Great for learning, research, or small CPU-only models
+
 ---
-
-
 
 ## 📌 Roadmap
 
@@ -44,8 +47,8 @@ You may notice the absence of automated testing — that’s intentional. I use 
 - Save/load model parameters  
 - Feature normalization support  
 - Support for CNNs, RNNs, and LSTMs  
----
 
+---
 
 ## 🧠 Example Usage
 
@@ -60,6 +63,8 @@ int epochs = 5000;
 double learning_rate = 0.2;
 int num_batches = 10;
 
-model.train_mini_batch(X_train, Y_train, epochs, learning_rate_, num_batches_);
+model.train_mini_batch(X_train, Y_train, epochs, learning_rate, num_batches);
 
 Matrix<double> predictions = model.predict(X_test);
+```
+---

@@ -212,7 +212,7 @@ Matrix<T> Matrix<T>::operator*(const Matrix<T>& rhs) const {
     const size_t rhs_cols = rhs.cols;
     
 #if defined(_OPENMP)
-#pragma omp parallel for num_threads(omp_get_dynamic()) if (rows > 100)
+#pragma omp parallel for num_threads(omp_get_max_threads()) if (rows > 100)
 #endif
     for (int i = 0; i < rows; ++i) {
         const size_t res_offset = i * rhs_cols;

@@ -9,87 +9,114 @@
 
 #include <random>    // for std::mt19937 and shuffling of batches in train_mini_batch
 
-// --- Default Activation and Cost Functions Implementation --- //
 
-template<typename T>
-T RelU(T x) {
-    return std::max(T(0), x);
-}
+// --- Activation and Cost Function Namespaces --- //
+namespace ActivationFunctions {
+    template<typename T>
+    T ReLU(T x) { return std::max(T(0), x); }
 
-template<typename T>
-T RelU_derivative(T x) {
-    return (x > T(0)) ? 1 : 0;
-}
+    template<typename T>
+    T ReLU_derivative(T x) { return (x > T(0)) ? 1 : 0; }
 
-template<typename T>
-Matrix<T> RelU_activation_derivative(const Matrix<T>& dA, const Matrix<T>& preActivation) {
-    //component wise multiplication of dA (derivative of cost function applied to A and target Matrix) and the activated matrix
-    return dA.hadamardMultiplication(preActivation.component_wise_transformation(&RelU_derivative<T>));
-}
-
-template<typename T>
-T meanSquaredError(const Matrix<T>& output, const Matrix<T>& target) {
-    assert(output.get_rows() == target.get_rows() && output.get_cols() == target.get_cols());
-    T error = T();
-    size_t total_elements = output.get_rows() * output.get_cols();
-    for (size_t row = 0; row < output.get_rows(); ++row) {
-        for (size_t col = 0; col < output.get_cols(); ++col) {
-            T diff = output(row, col) - target(row, col);
-            error += (diff * diff);
-        }
+    template<typename T>
+    Matrix<T> ReLU_activation_derivative(const Matrix<T>& dA, const Matrix<T>& Z) {
+        return dA.hadamardMultiplication(Z.component_wise_transformation(&ReLU_derivative<T>));
     }
-    return error / total_elements;
-}
 
-template<typename T>
-Matrix<T> MSE_derivative(const Matrix<T>& finalOutput, const Matrix<T>& trueLabels) {
-    size_t total_elements = finalOutput.get_rows() * finalOutput.get_cols();
-    return ((finalOutput - trueLabels) * (2.0 / total_elements));
-}
+    template<typename T>
+    T sigmoid(T x) { return 1 / (1 + std::exp(-x)); }
 
-
-// Default functions for binary classification:
-template<typename T>
-T sigmoid(T x) {
-    return 1 / (1 + std::exp(-x));
-}
-
-template<typename T>
-T sigmoid_derivative(T x) {
-    T s = sigmoid(x);
-    return s * (1 - s);
-}
-
-template<typename T>
-Matrix<T> sigmoid_activation_derivative(const Matrix<T>& dA, const Matrix<T>& preActivation) {
-    //component wise multiplication of dA (derivative of cost function applied to A and target Matrix) and the activated matrix
-    return dA.hadamardMultiplication(preActivation.component_wise_transformation(&sigmoid_derivative<T>));
-}
-
-template<typename T>
-T binaryCrossEntropy(const Matrix<T>& output, const Matrix<T>& target) {
-    // Compute average binary cross entropy cost.
-    T cost = T();
-    size_t m = output.get_rows() * output.get_cols();
-    for (size_t i = 0; i < output.get_rows(); ++i) {
-        for (size_t j = 0; j < output.get_cols(); ++j) {
-            T y = target(i, j);
-            T o = output(i, j);
-            // Avoid log(0) issues.
-            T epsilon = 1e-7;
-            cost += -y * std::log(o + epsilon) - (1 - y) * std::log(1 - o + epsilon);
-        }
+    template<typename T>
+    T sigmoid_derivative(T x) {
+        T s = sigmoid(x);
+        return s * (1 - s);
     }
-    return cost / m;
+
+    template<typename T>
+    Matrix<T> sigmoid_activation_derivative(const Matrix<T>& dA, const Matrix<T>& Z) {
+        return dA.hadamardMultiplication(Z.component_wise_transformation(&sigmoid_derivative<T>));
+    }
 }
 
-template<typename T>
-Matrix<T> binaryCrossEntropyDerivative(const Matrix<T>& finalOutput, const Matrix<T>& trueLabels) {
-    // Derivative of BCE with respect to the output of the sigmoid layer.
-    // (finalOutput - trueLabels) / (finalOutput * (1 - finalOutput))
-    // In practice, combine with the derivative of the sigmoid to avoid numerical issues.
-    // This is left as an exercise to refine.
-    return (finalOutput - trueLabels); // Simplified; in real use, combine with sigmoid derivative.
+namespace CostFunctions {
+    template<typename T>
+    T meanSquaredError(const Matrix<T>& output, const Matrix<T>& target) {
+        assert(output.get_rows() == target.get_rows() && output.get_cols() == target.get_cols());
+        T error = T();
+        size_t total_elements = output.get_rows() * output.get_cols();
+        for (size_t i = 0; i < output.get_rows(); ++i) {
+            for (size_t j = 0; j < output.get_cols(); ++j) {
+                T diff = output(i, j) - target(i, j);
+                error += diff * diff;
+            }
+        }
+        return error / total_elements;
+    }
+
+    template<typename T>
+    Matrix<T> MSE_derivative(const Matrix<T>& output, const Matrix<T>& target) {
+        size_t total_elements = output.get_rows() * output.get_cols();
+        return (output - target) * (2.0 / total_elements);
+    }
+
+    template<typename T>
+    T binaryCrossEntropy(const Matrix<T>& output, const Matrix<T>& target) {
+        T cost = T();
+        size_t m = output.get_rows() * output.get_cols();
+        T epsilon = 1e-7;
+        for (size_t i = 0; i < output.get_rows(); ++i) {
+            for (size_t j = 0; j < output.get_cols(); ++j) {
+                T y = target(i, j);
+                T o = output(i, j);
+                cost += -y * std::log(o + epsilon) - (1 - y) * std::log(1 - o + epsilon);
+            }
+        }
+        return cost / m;
+    }
+
+    template<typename T>
+    Matrix<T> binaryCrossEntropyDerivative(const Matrix<T>& output, const Matrix<T>& target) {
+        size_t total_elements = output.get_rows() * output.get_cols();
+        T epsilon = 1e-8;
+        Matrix<T> gradient(output.get_rows(), output.get_cols(), T());
+        for (size_t i = 0; i < output.get_rows(); ++i) {
+            for (size_t j = 0; j < output.get_cols(); ++j) {
+                T o = std::min(std::max(output(i, j), epsilon), T(1) - epsilon);
+                T y = target(i, j);
+                gradient(i, j) = -(y / o) + ((1 - y) / (1 - o));
+            }
+        }
+        return gradient * (1.0 / total_elements);
+    }
+
+    template<typename T>
+    T weightedMSE(const Matrix<T>& output, const Matrix<T>& target) {
+        assert(output.get_rows() == target.get_rows() && output.get_cols() == target.get_cols());
+        T error = T();
+        size_t total_elements = output.get_rows() * output.get_cols();
+        for (size_t i = 0; i < output.get_rows(); ++i) {
+            for (size_t j = 0; j < output.get_cols(); ++j) {
+                T diff = output(i, j) - target(i, j);
+                T weight = 1 + std::log(1 + target(i, j));
+                error += weight * diff * diff;
+            }
+        }
+        return error / total_elements;
+    }
+
+    template<typename T>
+    Matrix<T> weightedMSE_derivative(const Matrix<T>& output, const Matrix<T>& target) {
+        size_t total_elements = output.get_rows() * output.get_cols();
+        Matrix<T> grad(output.get_rows(), output.get_cols(), T());
+        for (size_t i = 0; i < output.get_rows(); ++i) {
+            for (size_t j = 0; j < output.get_cols(); ++j) {
+                T diff = output(i, j) - target(i, j);
+                T weight = 1 + std::log(1 + target(i, j));
+                grad(i, j) = 2 * weight * diff / total_elements;
+            }
+        }
+        return grad;
+    }
 }
 
 
@@ -111,14 +138,12 @@ template <typename T>
 NeuralNet<T>::NeuralNet(const std::vector<int>& layer_dims)
 : layer_dims(layer_dims)
 {
-activation = &RelU<T>;
-activation_deriv = &RelU_activation_derivative<T>;
-cost_func = &meanSquaredError<T>;
-cost_deriv = &MSE_derivative<T>;
-initializeParameters();
+    activation = &ActivationFunctions::ReLU<T>;
+    activation_deriv = &ActivationFunctions::ReLU_activation_derivative<T>;
+    cost_func = &CostFunctions::meanSquaredError<T>;
+    cost_deriv = &CostFunctions::MSE_derivative<T>;
+    initializeParameters();
 }
-
-
 
 template<typename T>
 void NeuralNet<T>::initializeParameters(T maxWeight) {
@@ -128,7 +153,7 @@ void NeuralNet<T>::initializeParameters(T maxWeight) {
         Parameters p;
         // Weight matrix dimensions: (layer_dims[l-1] x layer_dims[l])
         p.W = Matrix<T>::initRandomMatrix(layer_dims[l - 1], layer_dims[l], maxWeight);
-        // Bias: 1 x layer_dims[l] (to be broadcast during addition).
+        //  : 1 x layer_dims[l] (to be broadcast during addition).
         p.b = Matrix<T>(1, layer_dims[l], T(0));
         params[l - 1] = p;
     }

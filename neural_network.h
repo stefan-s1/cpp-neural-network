@@ -134,48 +134,52 @@ private:
     void backPropagation(const Matrix<T>& Y, const Cache& cache, T learning_rate);
 };
 
-// --- Default Activation and Cost Functions --- //
-
-// ReLU activation function.
-template<typename T>
-T RelU(T x);
-
-// ReLU derivative (element-wise).
-template<typename T>
-T RelU_derivative(T x);
-
-// Activation derivative for ReLU.
-// Computes dZ = dA ⊙ g'(Z) where g'(Z) is computed element-wise on the pre-activation matrix.
-template<typename T>
-Matrix<T> RelU_activation_derivative(const Matrix<T>& dA, const Matrix<T>& preActivation);
-
-// Mean Squared Error (MSE) cost function.
-template<typename T>
-T meanSquaredError(const Matrix<T>& output, const Matrix<T>& target);
-
-// Derivative of MSE with respect to the network output.
-template<typename T>
-Matrix<T> MSE_derivative(const Matrix<T>& finalOutput, const Matrix<T>& trueLabels);
 
 
 
+// --- Pre-made Activation and Cost Functions --- //
 
-template<typename T>
-T sigmoid(T x);
+namespace CostFunctions {
 
-template<typename T>
-T sigmoid_derivative(T x);
+    template<typename T>
+    T meanSquaredError(const Matrix<T>& output, const Matrix<T>& target);
 
-// Activation derivative for ReLU.
-// Computes dZ = dA ⊙ g'(Z) where g'(Z) is computed element-wise on the pre-activation matrix.
-template<typename T>
-Matrix<T> sigmoid_activation_derivative(const Matrix<T>& dA, const Matrix<T>& preActivation);
+    template<typename T>
+    Matrix<T> MSE_derivative(const Matrix<T>& finalOutput, const Matrix<T>& trueLabels);
 
+    template<typename T>
+    T weightedMSE(const Matrix<T>& output, const Matrix<T>& target);
 
-template<typename T>
-T binaryCrossEntropy(const Matrix<T>& output, const Matrix<T>& target);
+    template<typename T>
+    Matrix<T> weightedMSE_derivative(const Matrix<T>& output, const Matrix<T>& target);
 
-template<typename T>
-Matrix<T> binaryCrossEntropyDerivative(const Matrix<T>& finalOutput, const Matrix<T>& trueLabels);
+    template<typename T>
+    T binaryCrossEntropy(const Matrix<T>& output, const Matrix<T>& target);
+
+    template<typename T>
+    Matrix<T> binaryCrossEntropyDerivative(const Matrix<T>& finalOutput, const Matrix<T>& trueLabels);
+}
+
+namespace ActivationFunctions {
+
+    template<typename T>
+    T ReLU(T x);
+
+    template<typename T>
+    T ReLU_derivative(T x);
+
+    template<typename T>
+    Matrix<T> ReLU_activation_derivative(const Matrix<T>& dA, const Matrix<T>& preActivation);
+
+    template<typename T>
+    T sigmoid(T x);
+
+    template<typename T>
+    T sigmoid_derivative(T x);
+
+    template<typename T>
+    Matrix<T> sigmoid_activation_derivative(const Matrix<T>& dA, const Matrix<T>& preActivation);
+
+}
 
 #include "neural_network.cpp"

@@ -244,11 +244,14 @@ Matrix<T> Matrix<T>::transpose() const {
         return Matrix<T>(this->mat, cols, rows); 
     
     Matrix<T> result(cols, rows, T());
-    
-    for (size_t i = 0; i < rows; ++i) {
-        size_t offset = i * cols;
+
+#if defined(_OPENMP)
+#pragma omp parallel for num_threads(omp_get_max_threads()) if (rows > 100)
+#endif
+    for (int i = 0; i < rows; ++i) {
+        size_t offset = static_cast<size_t>(i) * cols;
         for (size_t j = 0; j < cols; ++j) {
-            result(j, i) = (*this).mat[offset + j];
+            result(j, static_cast<size_t>(i)) = (*this).mat[offset + j];
         }
     }
     return result;
@@ -457,3 +460,35 @@ std::vector<T> Matrix<T>::get_col_copy(size_t col) const {
     }
     return result;
 }
+
+template<typename T>
+Matrix<T>& Matrix<T>::standardize_columns_in_place() {
+    for (size_t col = 0; col < cols; ++col) {
+        T sum = T();
+        T sq_sum = T();
+
+        for (size_t row = 0; row < rows; ++row) {
+            T val = (*this)(row, col);
+            sum += val;
+            sq_sum += val * val;
+        }
+
+        T mean = sum / static_cast<T>(rows);
+        T variance = (sq_sum / static_cast<T>(rows)) - (mean * mean);
+        T stddev = std::sqrt(variance + static_cast<T>(1e-8)); // epsilon to avoid div by zero
+
+        for (size_t row = 0; row < rows; ++row) {
+            (*this)(row, col) = ((*this)(row, col) - mean) / stddev;
+        }
+    }
+
+    return *this;
+}
+
+template<typename T>
+Matrix<T> Matrix<T>::standardize_columns() const {
+    Matrix<T> result(*this);
+    result.standardize_columns_in_place();
+    return result;
+}
+

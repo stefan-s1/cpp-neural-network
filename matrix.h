@@ -75,5 +75,19 @@ class Matrix {
   std::vector<T> get_row_copy(size_t row) const;
   std::vector<T> get_col_copy(size_t col) const;
 
+  Matrix<T>& standardize_columns_in_place();
+  Matrix<T> standardize_columns() const;
+
+
+  /* Unsure on whether to add these methods or not... will note that they might come in future, but leave them out for now
+  struct StandardizationStats {
+    std::vector<T> mean;
+    std::vector<T> stddev;
+};
+    StandardizationStats Matrix<T>::standardize_columns_and_return_stats();
+    Matrix<T>& Matrix<T>::standardize_using_stats(const StandardizationStats&);
+  */
+
+
 };
 #include "matrix.cpp"

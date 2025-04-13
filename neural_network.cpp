@@ -99,9 +99,10 @@ NeuralNet<T>::NeuralNet(const std::vector<int>& layer_dims,
                         ActivationFunction activation,
                         ActivationFunctionDerivative activation_deriv,
                         CostFunction cost_func,
-                        CostFunctionDerivative cost_deriv)
+                        CostFunctionDerivative cost_deriv,
+                        bool standardize_data)
     : layer_dims(layer_dims), activation(activation), activation_deriv(activation_deriv),
-      cost_func(cost_func), cost_deriv(cost_deriv)
+      cost_func(cost_func), cost_deriv(cost_deriv), standardize_data(true)
 {
     initializeParameters();
 }
@@ -209,7 +210,15 @@ Matrix<T> NeuralNet<T>::predict(const Matrix<T>& X) {
 
 // X is input matrix, Y is true labels
 template<typename T>
-void NeuralNet<T>::train(const Matrix<T>& X, const Matrix<T>& Y, int epochs, T learning_rate) {
+void NeuralNet<T>::train(const Matrix<T>& X_original, const Matrix<T>& Y, int epochs, T learning_rate) {
+    const Matrix<T>* X_ptr = &X_original;
+    if (standardize_data) {
+        Matrix<T> X_standardized = X_original.standardize_columns();
+        X_ptr = &X_standardized;
+    }
+
+    const Matrix<T>& X = *X_ptr;
+
     for (int epoch = 0; epoch < epochs; ++epoch) {
         Cache cache = forwardPropagation(X);
         T cost = cost_func(cache.A.back(), Y);
@@ -222,53 +231,117 @@ void NeuralNet<T>::train(const Matrix<T>& X, const Matrix<T>& Y, int epochs, T l
     }
 }
 
-template<typename T>
-void NeuralNet<T>::train_mini_batch(const Matrix<T>& X, const Matrix<T>& Y, int epochs, T learning_rate, size_t num_batches) {
-    
+template <typename T>
+std::vector<std::pair<Matrix<T>, Matrix<T>>> create_random_batches(const Matrix<T>& X, const Matrix<T>& Y, size_t num_batches) {
     size_t num_samples = X.get_rows();
     size_t batch_size = (num_samples + num_batches - 1) / num_batches;  // ceil division
+
+    std::vector<size_t> indices(num_samples);
+    std::iota(indices.begin(), indices.end(), 0); // Fill with 0..n-1
+
+    static std::mt19937 rng(42); // You can change this seed for non-deterministic training
+    std::shuffle(indices.begin(), indices.end(), rng);
 
     std::vector<std::pair<Matrix<T>, Matrix<T>>> batches;
     batches.reserve(num_batches);
 
     for (size_t i = 0; i < num_batches; ++i) {
         size_t start = i * batch_size;
-        size_t actual_batch_size = std::min(batch_size, num_samples - start);
+        size_t end = std::min(start + batch_size, num_samples);
+        size_t actual_batch_size = end - start;
 
-        std::vector<std::vector<T>> batchX, batchY;
+        std::vector<std::vector<T>> batchX;
+        std::vector<std::vector<T>> batchY;
         batchX.reserve(actual_batch_size);
         batchY.reserve(actual_batch_size);
 
-        for (size_t j = 0; j < actual_batch_size; ++j) {
-            batchX.push_back(X.get_row_copy(start + j));
-            batchY.push_back(Y.get_row_copy(start + j));
+        for (size_t j = start; j < end; ++j) {
+            batchX.push_back(X.get_row_copy(indices[j]));
+            batchY.push_back(Y.get_row_copy(indices[j]));
         }
 
         batches.emplace_back(Matrix<T>(batchX), Matrix<T>(batchY));
     }
 
-    static std::mt19937 rng(42); // fixed seed for reproducibility; use std::random_device{}() for true randomness
-    std::vector<size_t> batch_indices(num_batches);
-    std::iota(batch_indices.begin(), batch_indices.end(), 0);
+    return batches;
+}
+
+template<typename T>
+void NeuralNet<T>::train_mini_batch(const Matrix<T>& X_original, const Matrix<T>& Y, int epochs, T learning_rate, size_t num_batches) {
+    
+    const Matrix<T>* X_ptr = &X_original;
+    if (standardize_data) {
+        Matrix<T> X_standardized = X_original.standardize_columns();
+        X_ptr = &X_standardized;
+    }
+
+    const Matrix<T>& X = *X_ptr;
 
     for (int epoch = 0; epoch < epochs; ++epoch) {
-        std::shuffle(batch_indices.begin(), batch_indices.end(), rng); // Shuffle batch access order
+        auto batches = create_random_batches(X, Y, num_batches);
+
+        T epoch_total_cost = 0;
 
         for (size_t i = 0; i < num_batches; ++i) {
-            size_t batch_idx = batch_indices[i];
+            Cache cache = forwardPropagation(batches[i].first);
+            T cost = cost_func(cache.A.back(), batches[i].second);
+            epoch_total_cost += cost;
 
-            Cache cache = forwardPropagation(batches[batch_idx].first);
-            T cost = cost_func(cache.A.back(), batches[batch_idx].second);
-            cost_history.push_back(cost);
-            backPropagation(batches[batch_idx].second, cache, learning_rate);
-
-            if (epoch % 1000 == 0 && i == 0) {
-                std::cout << "Epoch " << epoch << " cost: " << cost << std::endl;
-            }
+            backPropagation(batches[i].second, cache, learning_rate);
         }
+
+        T avg_cost = epoch_total_cost / num_batches;
+        cost_history.push_back(avg_cost);
+
+        if (epoch % 10 == 0) {
+            std::cout << "Epoch " << epoch << " average cost: " << avg_cost << std::endl;
+        }
+
     }
 }
 
+template<typename T>
+void NeuralNet<T>::train_stochastic(const Matrix<T>& X_original, const Matrix<T>& Y, int epochs, T learning_rate) {
+
+    const Matrix<T>* X_ptr = &X_original;
+    if (standardize_data) {
+        Matrix<T> X_standardized = X_original.standardize_columns();
+        X_ptr = &X_standardized;
+    }
+
+    const Matrix<T>& X = *X_ptr;
+
+
+    std::vector<size_t> indices(X.get_rows());
+    std::iota(indices.begin(), indices.end(), 0); // Fill with 0..n-1
+    static std::mt19937 rng(42); // You can change this seed for non-deterministic training
+
+    for (int epoch = 0; epoch < epochs; ++epoch) {
+
+        T epoch_total_cost = 0;
+
+        std::shuffle(indices.begin(), indices.end(), rng);
+
+        for (size_t i = 0; i < X.get_rows(); ++i) {
+            Matrix<T> x_i(X.get_row_copy(indices[i]), 1, X.get_cols());
+            Matrix<T> y_i(Y.get_row_copy(indices[i]), 1, Y.get_cols());
+
+            Cache cache = forwardPropagation(x_i);
+            T cost = cost_func(cache.A.back(), y_i);
+            epoch_total_cost += cost;
+
+            backPropagation(y_i, cache, learning_rate);
+        }
+
+        T avg_cost = epoch_total_cost / X.get_rows();
+        cost_history.push_back(avg_cost);
+
+        if (epoch % 10 == 0) {
+            std::cout << "Epoch " << epoch << " average cost: " << avg_cost << std::endl;
+        }
+
+    }
+}
 
 template<typename T>
 const std::vector<T>& NeuralNet<T>::getCostHistory() const {

@@ -65,13 +65,14 @@ public:
               ActivationFunction activation,
               ActivationFunctionDerivative activation_deriv,
               CostFunction cost_func,
-              CostFunctionDerivative cost_deriv);
+              CostFunctionDerivative cost_deriv,
+              bool standarize_data);
 
     // Train the network on input X with targets Y for a given number of epochs and learning rate.
     void train(const Matrix<T>& X, const Matrix<T>& Y, int epochs, T learning_rate);
     void train_mini_batch(const Matrix<T>& X, const Matrix<T>& Y, int epochs, T learning_rate, size_t batch_size);
+    void train_stochastic(const Matrix<T>& X_original, const Matrix<T>& Y, int epochs, T learning_rate);
 
-    
     // Predict outputs for a given input X.
     Matrix<T> predict(const Matrix<T>& X);
     
@@ -79,11 +80,27 @@ public:
     void setParameters(std::vector<Parameters> _params);
 
 
-    // Return the cost history collected during training.
+    // Getters
+    const std::vector<int>& getLayerDims() const { return layer_dims; }
+    const std::vector<Parameters>& getParams() const { return params; }
+    bool getStandardizeData() const { return standardize_data; }
+    ActivationFunction getActivationFunction() const { return activation; }
+    ActivationFunctionDerivative getActivationDerivative() const { return activation_deriv; }
+    CostFunction getCostFunction() const { return cost_func; }
+    CostFunctionDerivative getCostFunctionDerivative() const { return cost_deriv; }
     const std::vector<T>& getCostHistory() const;
 
-private:
 
+    // Setters
+    void setLayerDims(const std::vector<int>& dims) { layer_dims = dims; }
+    void setParams(const std::vector<Parameters>& _params) { params = _params; }
+    void setStandardizeData(bool value) { standardize_data = value; }
+    void setActivationFunction(ActivationFunction func) { activation = func; }
+    void setActivationDerivative(ActivationFunctionDerivative deriv) { activation_deriv = deriv; }
+    void setCostFunction(CostFunction func) { cost_func = func; }
+    void setCostFunctionDerivative(CostFunctionDerivative deriv) { cost_deriv = deriv; }
+
+private:
 
     // The layer dimensions (including input and output layers).
     std::vector<int> layer_dims;
@@ -91,6 +108,7 @@ private:
     std::vector<Parameters> params;
     // Cost history for every training epoch.
     std::vector<T> cost_history;
+    bool standardize_data;
     
     // Activation and cost functions.
     ActivationFunction activation;

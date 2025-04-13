@@ -30,7 +30,8 @@ You may notice the absence of automated testing — that’s intentional. I use 
 - Highly customizable:
   - Works with any data type that supports `*`, `+`, and `-` (including `double`, `std::complex`, intervals, polynomials!)
   - Plug in custom cost functions and activation functions (and their derivatives)
-- Supports both vanilla and mini-batch gradient descent
+- Supports both vanilla, mini-batch and, stochastic gradient descent
+- Can standardize input data before training
 - Lightweight matrix class with row-major layout and broadcasting support
 - Parallelism via OpenMP and C++20 parallel algorithms (where supported)
 - Great for learning, research, or small CPU-only models

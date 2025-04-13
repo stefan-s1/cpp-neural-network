@@ -7,27 +7,6 @@
 #include "matrix.h"
 
 
-// TODO:
-// allow users to configure different activation functions for final layer and hidden layers
-
-// TODO:
-// expose different initialization options:
-    // Xavier initialization
-    // He initialization
-    // zero initialization
-    // Lecun initialization
-    // Orthogonal initialization
-    // Custom (allow users to enter their own starting weights)
-
-// Expose a method for Batch Normalization
-
-// Incorporate momentum based learning
-// Incorporate stochastic gradient descent
-
-// For classification models, allow users to pass in an enum and expose a "predict_classify" which will return their enum for the class
-//
-
-
 // NeuralNet: A configurable feedforward neural network (MLP).
 // The user can specify the layer dimensions (including hidden layers),
 // the activation function (and its derivative), and the cost function (and its derivative).
@@ -70,7 +49,7 @@ public:
 
     // Train the network on input X with targets Y for a given number of epochs and learning rate.
     void train(const Matrix<T>& X, const Matrix<T>& Y, int epochs, T learning_rate);
-    void train_mini_batch(const Matrix<T>& X, const Matrix<T>& Y, int epochs, T learning_rate, size_t batch_size);
+    void train_mini_batch(const Matrix<T>& X, const Matrix<T>& Y, int epochs, T learning_rate, size_t num_batches);
     void train_stochastic(const Matrix<T>& X_original, const Matrix<T>& Y, int epochs, T learning_rate);
 
     // Predict outputs for a given input X.

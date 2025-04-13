@@ -48,6 +48,7 @@ You may notice the absence of automated testing — that’s intentional. I use 
 - Save/load model parameters  
 - Feature normalization support  
 - Support for CNNs, RNNs, and LSTMs  
+- Support more initalization options: Xavier, He, Zero, Lecun, Orthogonal, and custom starting weights
 
 ---
 
